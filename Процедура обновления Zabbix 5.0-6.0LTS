@@ -1,0 +1,287 @@
+Вход zabbix 5, mysql 5.7,
+Выход Zabbix6.0 LTS, Postgre 14,  TimescaleDB 2.6.1
+
+Остановка сервера. 
+
+На сервере проверяем состояние служб
+
+
+service --status-all | grep zabbix
+service --status-all | grep mysql
+
+Останавливаем службы по порядку. Сначала Zabbix-server и т.п. за ним sql. 
+
+
+service zabbix-server stop
+service zabbix-agent stop
+service zabbix-java-gateway stop
+
+Проверяем лог Zabbix
+
+tail -n 50 /var/log/zabbix/zabbix_server.log
+
+Если нет ошибок переходим к следующему этапу.
+
+
+Backup.
+
+
+mkdir /opt/zabbix-backup/
+
+Файлы конфигурации
+
+cp /etc/zabbix/zabbix_server.conf /opt/zabbix-backup/
+cp /etc/apache2/conf-enabled/zabbix.conf /opt/zabbix-backup/
+cp -r /etc/mysql /opt/zabbix-backup/
+
+Скрипты и бинарники.
+
+
+cp -R /usr/share/zabbix/ /opt/zabbix-backup/
+cp -R /usr/share/doc/zabbix-* /opt/zabbix-backup/
+
+SQL. (Не принципиально. Если что то пойдёт не так проще и быстрее откатится на snapshot)
+
+Создание
+
+mysqldump -h localhost -u root  --single-transaction 'zabbix' | gzip > /opt/zabbix_backup.sql.gz
+
+Восстановление
+
+zcat /opt/zabbix_backup/db_files/zabbix_backup.sql.gz | mysql -h localhost -u'root' -p'rootDBpass' 'zabbix'
+
+
+Не забываем создать backup/snapshot жесткого диска/виртуальной машины.
+
+Экранирование от корпоративной сети.
+
+Проверяем состояние фаервола
+
+
+iptables -L OUTPUT -v -n
+
+Нам необходимо закрыть все выходы во внутреннюю сеть за исключением своей машины и DNS сервера. 
+
++ ACCEPT до своей машины.
++ ACCEPT на порт 5432 для postgres admin (по какой то причине accept all нормально не открывает)
+
+iptables -I INPUT -p tcp --dport 5432 -j ACCEPT
+
+И НЕ ЗАБЫВАЕМ СОХРАНИТЬ
+
+netfilter-persistent save
+
+Переход на Postgre
+
+1) Останавливаем сервер zabbix 
+2) Устанавливаем PostgreSql  и TimeScaleDB 
+
+
+apt install gnupg postgresql-common apt-transport-https lsb-release wget
+/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" > /etc/apt/sources.list.d/timescaledb.list
+wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | apt-key add -
+
+Если  Ubuntu 21.10 или новее ключ ставим так:
+
+wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | sudo sh -c "gpg --dearmor > /etc/apt/trusted.gpg.d/timescaledb.gpg"
+
+На момент установки Zabbix 6.* не поддерживает TimescaleDB выше версии 2.6.1. Устанавливаем именно эту версию:
+
+apt-get install timescaledb-2-postgresql-14='2.6.1*' timescaledb-2-loader-postgresql-14='2.6.1*' pgloader timescaledb-tools
+При желании запустить timescaledb-tune или настроить руками TimescaleDB extension.
+
+4) Начинаем миграцию.
+
+Ключевые моменты:
+Мы идём +/по мануалу от zabbix, но есть определяющие ньюансы. 
+
+sudo -u postgres createuser --interactive zabbix  - Создали пользователя. (Лучше сразу дать ему суперюзера. Меньше будет спотыкаться о права доступа)
+sudo -u postgres createdb -O zabbix zabbix - создали базу Zabbix
+
+Принципиально важно что бы версии zabbix на доноре и акцептере совпадали. Иначе потеряем данные после  zabbix.load.data. 
+
+С этого момента начинаются принципиальные расхождения с офф. мануалом. Необходимо разметить базу согласно шаблону базы Zabbix, Однако, если делать это по мануалу шаблон наплодит кучу сущностей о которых будет спотыкаться и падать процесс миграции.
+
+Разделим шаблон базы на два файла и удалим все записи о создании. Create отдельно, Alter отдельно и удалим INSERT.
+
+Необходим будет файл schema.sql который лежит  в исходном коде с сайта производителя в папке ./zabbix-5.0.26/database/postgresql/schema.sql разбить на части. 
+
+
+cd /имя папки с исходниками zabbix/database/postgresql/
+sed -n '/CREATE.*/,/INSERT.*$/p' schema.sql | head -n-1 > create.sql
+grep ALTER schema.sql > alter.sql
+
+
+На выходе имеем два файла create и alter. 
+
+Так же подготовим скрипты миграции
+
+1) zabbix.load.config
+
+LOAD DATABASE
+FROM mysql://zabbix:ND4ouu7QwH@localhost/zabbix
+INTO postgresql://zabbix:zabbix@localhost/zabbix
+WITH include no drop,
+truncate,
+create no tables,
+create no indexes,
+no foreign keys,
+reset sequences,
+data only
+SET MySQL PARAMETERS
+max_execution_time = '0'
+SET PostgreSQL PARAMETERS
+maintenance_work_mem TO '1024MB', work_mem to '128MB'
+EXCLUDING TABLE NAMES MATCHING ~/history.*/, ~/trend.*/
+ALTER SCHEMA 'zabbix' RENAME TO 'public';
+
+
+2) zabbix.load.data
+
+LOAD DATABASE
+FROM mysql://zabbix:ND4ouu7QwH@localhost/zabbix
+INTO postgresql://zabbix:zabbix@localhost/zabbix
+WITH include no drop,
+no truncate,
+create no tables,
+create no indexes,
+no foreign keys,
+reset sequences,
+data only, prefetch rows = 5000,
+multiple readers per thread
+SET MySQL PARAMETERS
+max_execution_time = '0',
+net_read_timeout = ‘86400’,
+net_write_timeout = ‘86400’
+SET PostgreSQL PARAMETERS maintenance_work_mem TO '1024MB', work_mem to '128MB'
+INCLUDING ONLY TABLE NAMES MATCHING ~/history.*/, ~/trend.*/
+ALTER SCHEMA 'zabbix' RENAME TO 'public';
+
+Миграция будет проходит в две стадии. Перенос шаблонов и перенос истории и трендов. 
+
+Начало процедуры миграции. 
+
+Останавливаем сервер и применяем первую часть разметки на базу. 
+
+systemctl stop zabbix-server
+cat create.sql | psql -Uzabbix zabbix
+pgloader zabbix.load.config
+
+
+После окончания может быть некоторое количество некритичных ошибок.
+
+Применим вторую часть форматирования к нашей базе. 
+
+cat alter.sql | psql -Uzabbix zabbix
+
+Стартуем Zabbix server и проверяем веб интерфейс.
+
+Если проблемы со старой конфигурацией - можем удалить.
+
+rm /etc/zabbix/web/zabbix.conf.php
+systemctl reboot zabbix-server
+
+
+Заходим на веб интерфейс и конфигурируем сервер для новой базы.  Убеждаемся, что сервер запустился и работает с новой базой, шаблоны сохранены но истории нет. 
+
+
+Вторая часть миграции. Перенос истории и трендов. 
+
+Останавливаем сервер и запускаем вторую часть скрипта. 
+
+pgloader zabbix.load.data
+
+В конце миграции мы увидим сообщение о количестве  перенесённой информации. 
+
+Добавляем TimescaleDB extension 
+
+echo "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;" | sudo -u postgres psql zabbix
+cat timescaledb.sql | sudo -u zabbix psql zabbix
+
+Обновление сервера Zabbix
+
+Удаляем ссылку на текущий репозиторий Zabbix
+rm -RF /etc/apt/sources.list.d/zabbix.list
+
+Устанавливаем новый репозиторий. 
+
+wget https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-3+ubuntu22.04_all.deb
+dpkg -i zabbix-release_6.0-3+ubuntu22.04_all.deb
+
+Если уверены в стабильности системы то
+
+apt  update && apt upgrade -y
+apt autoremove
+
+Если уверенности нет, то обновляем только пакеты Zabbix
+
+apt install --upgrade-only zabbix-server zabbix-agent  zabbix-frontend-php
+
+Проверяем состояние zabbix-server и останавливаем  его. 
+
+HOWTO :
+
+
+Удаление базы POSTGRE 
+
+Предотвращаем возможность новых подключений
+ 
+UPDATE pg_database SET datallowconn = 'false' WHERE datname = 'zabbix';
+ 
+Закрываем текущие сессии
+ 
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'zabbix' AND pid <> pg_backend_pid();
+ 
+Удаляем базу
+DROP DATABASE zabbix;
+
+
+Пересчитать конфигурацию Postgre
+
+
+SELECT pg_reload_conf();
+
+
+Узнать размер таблиц в базе zabbix
+
+SELECT
+table_name AS `Table`,
+round(((data_length + index_length) / 1024 / 1024), 2) `Size in MB`
+FROM information_schema.TABLES
+WHERE table_schema = "zabbix";
+
+
+Скрипт очистки MySql
+
+-- intervals in days
+SET @history_interval = 90;
+SET @trends_interval = 365;
+ 
+DELETE FROM alerts WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM acknowledges WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM events WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+ 
+DELETE FROM history WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM history_uint WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM history_str WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM history_text WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+DELETE FROM history_log WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@history_interval * 24 * 60 * 60);
+ 
+DELETE FROM trends WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@trends_interval * 24 * 60 * 60);
+DELETE FROM trends_uint WHERE (UNIX_TIMESTAMP(NOW()) - clock) > (@trends_interval * 24 * 60 * 60);
+
+
+Репозиторий TimeScaleDB
+
+https://packagecloud.io/timescale/timescaledb/packages/ubuntu/jammy/timescaledb-2-postgresql-14_2.6.1~ubuntu22.04_amd64.deb
+
+Оптимизация
+
+https://habr.com/ru/post/458952/
+https://shurshun.ru/zabbix-chistka-bazyi-dannyih/https://vladivostok.is1c.ru/career/blog/derzhi-dannye-v-teple-tranzaktsii-v-kholode-a-vacuum-v-golode/
+
+
+Создать пользователя в postgre
+
+createuser --interactive user
