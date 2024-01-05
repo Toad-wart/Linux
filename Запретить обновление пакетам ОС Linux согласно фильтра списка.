@@ -1,0 +1,10 @@
+1) Выведем список установленных пакетов 
+apt list 
+2) Приведём от вида zutils-dbg/oldoldstable 1.3-4 amd64 к виду zutils-dbg.
+apt list | sed "s/\\/.*//" 
+3) Отфильтруем по имени 
+apt list | sed "s/\\/.*//" | grep squid 
+4)  Применим команду к каждой строчке списка. 
+apt list | sed "s/\\/.*//" | grep squid | xargs -n 1 apt-mark hold
+5) Проверим результат
+apt-mark showhold
