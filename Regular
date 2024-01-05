@@ -1,0 +1,126 @@
+Запретить обновление пакетам ОС Linux согласно фильтра списка.
+1) Выведем список установленных пакетов 
+apt list 
+2) Приведём от вида zutils-dbg/oldoldstable 1.3-4 amd64 к виду zutils-dbg.
+apt list | sed "s/\\/.*//" 
+3) Отфильтруем по имени 
+apt list | sed "s/\\/.*//" | grep squid 
+4)  Применим команду к каждой строчке списка. 
+apt list | sed "s/\\/.*//" | grep squid | xargs -n 1 apt-mark hold
+5) Проверим результат
+apt-mark showhold
+
+
+Восстановление раздела swap после миграции Linux сервера.
+Во время конвертации (из одного гипервизора в другой(ESXI/HyperV), пот восстановлении из бекапа, из образа) конвертор может отмонтировать раздел swap и сервер запустится с "Warning No swap" в логе загрузки.
+Для восстановления раздела мы сделаем следующее.  
+1) Проверим, видит ли система swap.
+swapon --show
+Если возвращает пустую строку - свапа нет. 
+
+2) Проверяем наличие записи о swap разделе. 
+nano /etc/fstab
+
+3) Начинаем восстанавливать. 
+mkswap /dev/sda5
+swapon /dev/sda5
+swapon --show
+
+Постановка внешнего хоста на мониторинг Zabbix
+1) На стороне сервера генерируем ключ PSK, создаём и настраиваем узел сети для мониторинга. 
+openssl rand -hex 32
+
+2) В разделе Шифрование укажем TLSPSKIdentity из настроек агента и сгенерированный ключ.
+
+3) В агенте на стороне клиента создаём файл содержащий ключ и  изменяем параметры /etc/zabbix/zabbix_agentd.conf
+TLSConnect=psk
+TLSAccept=psk
+TLSPSKFile=/etc/zabbix_agentd.psk
+TLSPSKIdentity=web-app
+
+
+Установка ntp
+
+apt-get install ntp
+systemctl enable ntp || update-rc.d ntp defaults
+systemctl start ntp || service ntp start
+cp /usr/share/zoneinfo/Asia/Vladivostok /etc/localtime
+
+
+Разметка диска
+fdisk /dev/sda
+print
+
+e2fsck -f /dev/sda1
+resize2fs /dev/sda1
+
+nano /etc/fstab
+free -m
+mkswap /dev/sda5
+swapon /dev/sda5
+blkid
+
+
+Проверка рабочих демонов
+systemctl list-unit-files
+
+Проверить открытые порты в Centos
+sudo firewall-cmd --zone=public --list-all
+
+Открыть порт в Centos
+sudo firewall-cmd --zone=public --add-port=5432/tcp --permanent
+sudo firewall-cmd --reload
+
+Логаем процессы 
+atop -w /tmp/atop.raw 2 150 (каждые 2сек на протяжении 5минут)
+atop -r /tmp/atop.raw
+
+Лог strace 
+strace -tt -s -256 -p <poller_pid> -o debug.txt
+
+Создать пользака в samba
+smbpasswd -a username
+
+размер папок
+du -sh /var/* 
+
+Проверка досутпности заббикс агента
+zabbix_get  -s %адресс узла% -k agent.ping
+
+Спам фильтры exim
+
+less /var/log/exim4/mainlog <—- лог эксима
+less /var/log/mail.log <—- лог антиспама
+pico /etc/spamassassin/local.cf <—- вайтлист спама
+/etc/init.d/spamassassin reload
+
+в гугл mxtoolbox см там blacklists
+
+список правил Iptables 
+iptables -L --line-numbers -v -n 
+
+Проблема с libc6-armel-cross
+
+sudo dpkg -P --force-depends libc6-armel-cross libc6-armhf-cross libc6-dev-armel-cross libc6-dev-armhf-cross
+sudo apt clean
+sudo apt update
+sudo apt -f install
+sudo apt install libc6-dev-armel-cross libc6-dev-armhf-cross
+
+
+blkid - список UUID разделов
+lsblk - структура разделов
+ls /sys/class/net - список интерфейсов сеть
+nmcli device status статус интерфейсов
+
+Установка Doker
+
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+
+
+**PostgreSQL**
+Размер базы данныx
+SELECT pg_size_pretty( pg_database_size( 'sample_db' ) );
+
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO nielsen;
