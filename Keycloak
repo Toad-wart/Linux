@@ -1,0 +1,99 @@
+Ставим базу 
+
+apt install sudo curl gnupg postgresql-common apt-transport-https lsb-release wget
+/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+apt-get -y install postgresql-14
+
+
+Создаём пользователя
+
+su postgres
+psql
+create user keyuser with password 'pass';
+CREATE DATABASE keycloakdb;
+grant all privileges on database keycloakdb to keyuser;
+
+Установка Doker
+
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+
+
+Compose
+
+apt update
+apt install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list  /dev/null
+apt update
+apt-cache policy docker-ce
+apt install docker-ce docker-compose
+
+
+DokerFile
+
+
+FROM quay.io/keycloak/keycloak:20.0 as builder
+ 
+# Enable health and metrics support
+ENV KC_HEALTH_ENABLED=true
+ENV KC_METRICS_ENABLED=true
+ 
+# Configure a database vendor
+ENV KC_DB=postgres
+ 
+WORKDIR /opt/keycloak
+# for demonstration purposes only, please make sure to use proper certificates in production instead
+#RUN keycloak/bin/add-user-keycloak.sh -u admin -p admin
+RUN keytool -genkeypair -storepass password -storetype PKCS12 -keyalg RSA -keysize 2048 -dname "CN=server" -alias server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" -keystore conf/server.keystore
+#RUN keytool -certreq -alias keycloac -keypass chueh4Fu -storetype JKS -keystore keystore.jks -storepass abcdef -file certreq.certreq
+ 
+RUN /opt/keycloak/bin/kc.sh build
+ 
+ 
+ 
+FROM quay.io/keycloak/keycloak:20.0
+COPY --from=builder /opt/keycloak/ /opt/keycloak/
+ 
+ 
+ 
+ENV KEYCLOAK_ADMIN=root
+ENV KEYCLOAK_ADMIN_PASSWORD=123
+ 
+# change these values to point to a running postgres instance
+ENV KC_DB_URL=jdbc:postgresql://192.168.66.50:5432/keycloakdb
+ENV KC_DB_USERNAME=keyuser
+ENV KC_DB_PASSWORD=dbpass
+#ENV KC_HOSTNAME=keycloak-test.local
+ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+
+Cобираем и запускаем
+
+docker build . -t mykeycloak && docker run --name mykeycloak -d -p 8443:8443 -p 8080:8080 mykeycloak start --optimized --proxy edge --hostname-strict=false
+
+
+Драйвер для базы уже в контейнере
+
+
+ПЛОДИТ КОНТЕЙНЕРЫ ВО ВНУТРЕННЕЙ СЕТИ ДОКЕРА. Настроить базу на доступ от туда. 
+
+Поднять тестовый сервис с кнопкой авторизации.
+
+https://habr.com/ru/company/alfastrah/blog/651861/  Например
+
+
+Удаляем базу 
+
+sudo apt-get --purge remove postgresql\*
+
+Чистим докер полностью 
+
+docker kill $(docker ps -q) & docker rm $(docker ps -a -q) & docker rmi $(docker images -q)
+
+Управление токенами
+
+https://dteleguin.gitbooks.io/keycloak-tms-ru/content/token-management.html
+
+Разворачивание сервиса с точки зрения Yandex
+
+https://cloud.yandex.ru/docs/organization/operations/federations/integration-keycloak
