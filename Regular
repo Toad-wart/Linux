@@ -1,3 +1,8 @@
+Ставим Postgres
+apt install sudo curl gnupg postgresql-common apt-transport-https lsb-release wget
+/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+apt-get -y install postgresql-14
+
 Запретить обновление пакетам ОС Linux согласно фильтра списка.
 1) Выведем список установленных пакетов 
 apt list 
