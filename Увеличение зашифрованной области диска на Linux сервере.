@@ -1,0 +1,43 @@
+За основу взята статья https://unix.stackexchange.com/questions/320957/extend-a-luks-encrypted-partition-to-fill-disk  с некоторыми изменениями.
+
+1) Загружаемся в live-cd.
+2) Проверим наличие раздела и расшифруем его. 
+
+Расшифровываем
+
+cryptsetup luksOpen /dev/sda5 crypt-volume
+3) Расширяем раздел. Сначала Extended, потом Logical 
+
+parted /dev/sda
+print free
+resizepart 2 37.6GB
+resizepart 5 37.6GB
+
+4) Проверим VolumeGroup
+5) Деактивируем целевую VG
+
+vgchange -a n debian-vg
+
+6) Переразметим шифрованный раздел и обратно активируем VG.  
+
+cryptsetup resize crypt-volumevgchange -a y debian-vg
+7) Изменим размер физического раздела
+
+pvresize /dev/mapper/crypt-volume
+
+8) Проверяем активна ли у нас debian-vg и расширяем необходимый раздел внутри неё на всё имеющееся свободное место.
+
+vgchange -a y debian-vg
+lvresize -l +100%FREE /dev/mapper/debian--vg-tmp
+
+9) Проверяем целостность созданной области
+
+e2fsck -f /dev/mapper/debian--vg-tmp
+
+Могут быть ошибки - соглашаемся на исправление.
+
+10) Увеличиваем размер логического раздела. Может занять некоторое время, не волнуемся. 
+
+resize2fs /dev/mapper/debian--vg-tmp
+
+11) Работа завершена. Можем проверить из текущей системы командами pvs, vgs и lvs или перезагрузиться в рабочую ОС и df -h. Раздел temp - 5Gb.
