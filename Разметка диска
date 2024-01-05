@@ -1,0 +1,11 @@
+fdisk /dev/sda
+print
+
+e2fsck -f /dev/sda1
+resize2fs /dev/sda1
+
+nano /etc/fstab
+free -m
+mkswap /dev/sda5
+swapon /dev/sda5
+blkid
