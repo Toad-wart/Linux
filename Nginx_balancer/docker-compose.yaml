@@ -1,0 +1,13 @@
+services:
+
+  nginx:
+    restart: unless-stopped
+    image: nginx:latest
+    ports:
+    - 80:80
+    - 443:443
+#    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    volumes:
+    - ./conf/nginx:/etc/nginx/:ro
+    - ./logs/nginx:/var/log/nginx
+    - ./conf/nginx/site-enabled:/etc/nginx/site-enabled
