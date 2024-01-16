@@ -10,4 +10,4 @@ services:
     volumes:
     - ./conf/nginx:/etc/nginx/:ro
     - ./logs/nginx:/var/log/nginx
-    - ./conf/nginx/site-enabled:/etc/nginx/site-enabled
+    - ./conf/nginx/site-enabled:/etc/nginx/site-enabled:ro
