@@ -1,5 +1,6 @@
 fdisk /dev/sda
 print
+W  - for accept
 
 e2fsck -f /dev/sda1
 resize2fs /dev/sda1
