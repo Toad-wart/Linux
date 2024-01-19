@@ -4,7 +4,7 @@ dpkg -i /tmp/zabbix-release_6.0-5+debian12_all.deb
 
 apt update
 
-apt install zabbix-agent curl nano htop nmap sudo net-tools ntp -y
+apt install zabbix-agent curl nano htop nmap sudo net-tools open-vm-tools-desktop ntp -y
 
 sed -i "s/127.0.0.1/192.168.10.209/g" /etc/zabbix/zabbix_agentd.conf
 systemctl restart zabbix-agent || systemctl enable zabbix-agent
