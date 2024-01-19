@@ -11,15 +11,3 @@ nano /etc/fstab
 mkswap /dev/sda5
 swapon /dev/sda5
 swapon --show
-
-Постановка внешнего хоста на мониторинг Zabbix
-1) На стороне сервера генерируем ключ PSK, создаём и настраиваем узел сети для мониторинга. 
-openssl rand -hex 32
-
-2) В разделе Шифрование укажем TLSPSKIdentity из настроек агента и сгенерированный ключ.
-
-3) В агенте на стороне клиента создаём файл содержащий ключ и  изменяем параметры /etc/zabbix/zabbix_agentd.conf
-TLSConnect=psk
-TLSAccept=psk
-TLSPSKFile=/etc/zabbix_agentd.psk
-TLSPSKIdentity=web-app
