@@ -24,3 +24,5 @@ sh pbis-open-9.1.0.551.linux.x86_64.deb.sh
 /opt/pbis/bin/config HomeDirTemplate %H/%U
 echo "%SEVEROTORG\\Linux_administrators ALL=NOPASSWD: ALL" >> /etc/sudoers
 
+#zabbly up  WARNING!!! REBOOT !!!
+sh zabbly.sh
