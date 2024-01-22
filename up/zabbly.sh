@@ -6,3 +6,5 @@ codename=$(lsb_release -sc) && echo deb [arch=amd64,arm64 signed-by=/usr/share/k
 
 sudo apt update
 sudo apt install linux-zabbly -y
+
+reboot
