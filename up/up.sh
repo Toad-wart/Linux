@@ -7,6 +7,8 @@ apt update
 apt install zabbix-agent curl nano htop nmap sudo net-tools open-vm-tools-desktop ntp -y
 
 sed -i "s/127.0.0.1/192.168.10.209/g" /etc/zabbix/zabbix_agentd.conf
+sed -i "s/Hostname=/#Hostname=/g" /etc/zabbix/zabbix_agentd.conf
+sed -i "s/# HostMetadata=/HostMetadata=OSLinux/g" /etc/zabbix/zabbix_agentd.conf
 systemctl restart zabbix-agent || systemctl enable zabbix-agent
 
 #ntp up
@@ -25,4 +27,4 @@ sh pbis-open-9.1.0.551.linux.x86_64.deb.sh
 echo "%SEVEROTORG\\Linux_administrators ALL=NOPASSWD: ALL" >> /etc/sudoers
 
 #zabbly up  WARNING!!! REBOOT !!!
-sh zabbly.sh
+#sh zabbly.sh
