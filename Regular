@@ -59,6 +59,8 @@ sudo apt update
 sudo apt -f install
 sudo apt install libc6-dev-armel-cross libc6-dev-armhf-cross
 
+Переустановка
+apt reinstall -f zabbix-agent
 
 blkid - список UUID разделов
 lsblk - структура разделов
