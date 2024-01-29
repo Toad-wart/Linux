@@ -1,3 +1,9 @@
+Generate snakeoil SSL certificates on Debian
+sudo apt-get install ssl-cert
+sudo make-ssl-cert generate-default-snakeoil
+sudo usermod --append --groups ssl-cert yyuu
+ls -l /etc/ssl/certs/ssl-cert-snakeoil.pem /etc/ssl/private/ssl-cert-snakeoil.key
+
 Достать файлы из контейнера
 
 docker run --name tmp-nginx-container -d nginx
