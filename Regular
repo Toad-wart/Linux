@@ -1,3 +1,6 @@
+Rsync полная копия удалённой директории с удалением файлов.
+rsync -argov --delete  root@10.240.240.27:/var/log /home/src
+
 Generate snakeoil SSL certificates on Debian
 sudo apt-get install ssl-cert
 sudo make-ssl-cert generate-default-snakeoil
