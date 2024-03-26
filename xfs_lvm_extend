@@ -1,0 +1,5 @@
+pvresize /dev/sdb
+ 
+lvextend -l +100%FREE /dev/VNSKLAD01-BACKUP-vg2/repository
+ 
+xfs_growfs -d /backups/
