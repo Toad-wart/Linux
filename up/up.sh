@@ -13,7 +13,7 @@ systemctl restart zabbix-agent || systemctl enable zabbix-agent
 
 #ntp up
 systemctl enable ntp || update-rc.d ntp defaults
-systemctl start ntp || service ntp start || 
+systemctl start ntp || service ntp start 
 cp /usr/share/zoneinfo/Asia/Vladivostok /etc/localtime
 
 #pbis up
