@@ -1,0 +1,28 @@
+sudo apt update && sudo apt full-upgrade -y
+sudo apt -y install build-essential git curl wget libnewt-dev libssl-dev libncurses5-dev subversion libsqlite3-dev libjansson-dev libxml2-dev uuid-dev default-libmysqlclient-dev
+cd /usr/src/
+wget https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-20-current.tar.gz
+tar xzvf asterisk-20-current.tar.gz
+cd asterisk-20.7.0/
+contrib/scripts/install_prereq install
+make distclean
+./configure
+make menuselect
+make
+make install
+sudo make samples &&  sudo make config &&  sudo ldconfig
+
+
+sudo groupadd asterisk && 
+sudo useradd -r -d /var/lib/asterisk -g asterisk asterisk && 
+sudo usermod -aG audio,dialout asterisk && 
+sudo chown -R asterisk:asterisk /etc/asterisk && 
+sudo chown -R asterisk:asterisk /var/{lib,log,run,spool}/asterisk && 
+sudo chown -R asterisk:asterisk /usr/lib/asterisk
+
+id asterisk
+
+sudo sed -i 's/#AST_USER="asterisk"/AST_USER="asterisk"/' /etc/default/asterisk && 
+sudo sed -i 's/#AST_GROUP="asterisk"/AST_GROUP="asterisk"/' /etc/default/asterisk && 
+sudo sed -i 's/;runuser = asterisk/runuser = asterisk/' /etc/asterisk/asterisk.conf && 
+sudo sed -i 's/;rungroup = asterisk/rungroup = asterisk/' /etc/asterisk/asterisk.conf
