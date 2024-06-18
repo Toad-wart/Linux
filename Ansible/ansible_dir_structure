@@ -1,5 +1,14 @@
 #!/bin/bash
 
+#Установка Ansible
+
+apt update
+apt install software-properties-common
+add-apt-repository --yes --update ppa:ansible/ansible
+apt install ansible
+ansible --version
+
+
 # Основная директория проекта Ansible
 BASE_DIR=~/ansible
 
