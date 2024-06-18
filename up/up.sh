@@ -4,7 +4,10 @@ dpkg -i /tmp/zabbix-release_6.0-5+debian12_all.deb
 
 apt update
 
-apt install zabbix-agent curl nano htop nmap sudo net-tools open-vm-tools ntp mc -y
+apt install zabbix-agent curl nano htop nmap sudo net-tools open-vm-tools ntp mc unattended-upgrades -y
+
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+
 
 sed -i "s/127.0.0.1/192.168.10.209/g" /etc/zabbix/zabbix_agentd.conf
 sed -i "s/Hostname=/#Hostname=/g" /etc/zabbix/zabbix_agentd.conf
