@@ -4,7 +4,7 @@ dpkg -i /tmp/zabbix-release_6.0-5+debian12_all.deb
 
 apt update
 
-apt install zabbix-agent curl nano htop nmap sudo net-tools open-vm-tools ntp mc unattended-upgrades -y
+apt install zabbix-agent curl nano htop nmap sudo net-tools tmux open-vm-tools ncdu ntp mc unattended-upgrades -y
 
 sudo dpkg-reconfigure --priority=low unattended-upgrades
 
