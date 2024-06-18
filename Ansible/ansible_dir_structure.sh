@@ -85,8 +85,7 @@ cat <<EOF > $BASE_DIR/playbooks/setup.yml
           };
           Unattended-Upgrade::Mail "admin@example.com";
           Unattended-Upgrade::Remove-Unused-Dependencies "true";
-          Unattended-Upgrade::Automatic-Reboot "true";
-          Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+          Unattended-Upgrade::Automatic-Reboot "false";
 EOF
 
 # Создание файла tasks/main.yml для роли common
