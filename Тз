@@ -7,6 +7,7 @@
   vim-cmd vmsvc/power.shutdown $(esxcli vm process list | grep "World ID" | awk '{print $3}') && vim-cmd hostsvc/maintenance_mode_enter
 
 Доработать: через 10 минут то же самое, но vim-cmd vmsvc/power.off + проверить нет ли у VM заданий вроде снепшота или консолидации диска.
+Ссобщения в телегу ответственным сотрудникам.
 
 Ссылки для анализа.
 https://knowledge.broadcom.com/external/article/308457/powering-off-an-unresponsive-virtual-mac.html
