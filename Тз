@@ -13,6 +13,7 @@
 https://knowledge.broadcom.com/external/article/308457/powering-off-an-unresponsive-virtual-mac.html
 https://winitpro.ru/index.php/2018/04/18/poleznye-komandy-vmware-esxi/
 
-2) 
+2) Строим кластер Splunk. 30Тб логов. Распределение по быстрым и медленным шардам.
+Index Lifecycle Management (ILM) 
 
-
+https://habr.com/ru/companies/oleg-bunin/articles/757958/
