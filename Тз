@@ -3,10 +3,14 @@
 Скрипт по триггеру
   Проваливаемся на esxi по ssh
   
-  Получаем id всех машине на хосте и мягко останавливаем вирт машины из списка
+  Получаем id всех машине на хосте и мягко останавливаем вирт машины из списка и уводим хост в обслуживание
   vim-cmd vmsvc/power.shutdown $(esxcli vm process list | grep "World ID" | awk '{print $3}')
+  vim-cmd hostsvc/maintenance_mode_enter
 
 Доработать: через 10 минут то же самое, но vim-cmd vmsvc/power.off + проверить нет ли у VM заданий вроде снепшота или консолидации диска.
+Ссылки для анализа.
+https://knowledge.broadcom.com/external/article/308457/powering-off-an-unresponsive-virtual-mac.html
 
+2) 
 
 
