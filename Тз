@@ -3,9 +3,7 @@
 Скрипт по триггеру
   Проваливаемся на esxi по ssh
   
-  Получаем id всех машине на хосте 
-    $vmid = esxcli vm process list | grep "World ID" | awk '{print $3}'
-Мягко останавливаем вирт машины из списка 
+  Получаем id всех машине на хосте и мягко останавливаем вирт машины из списка
   vim-cmd vmsvc/power.shutdown $(esxcli vm process list | grep "World ID" | awk '{print $3}')
 
 Доработать: через 10 минут то же самое, но vim-cmd vmsvc/power.off + проверить нет ли у VM заданий вроде снепшота или консолидации диска.
