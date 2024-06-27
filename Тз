@@ -16,7 +16,7 @@ https://knowledge.broadcom.com/external/article/308457/powering-off-an-unrespons
 https://winitpro.ru/index.php/2018/04/18/poleznye-komandy-vmware-esxi/
 
 3) Строим кластер Splunk. 30Тб логов. Распределение по быстрым и медленным шардам.
-Да, конечно. Необходимо применить механизм индексов. При создании индекса выбрать Max size Hot\swarm\cold bucket и указать пусть к cold. Указать размер Max 
+Штатный функционал. Необходимо применить механизм индексов Index Lifecycle Management (ILM) . При создании индекса выбрать Max size Hot\swarm\cold bucket и указать пусть к cold. Указать размер Max 
 
 Index Lifecycle Management (ILM) 
 https://www.youtube.com/watch?v=shRMyUGQz1M
@@ -43,5 +43,7 @@ ansible_winrm_kerberos_delegation=true
 
 Для работы можно использовать коллекции. Разобраться.
 
-5) 
+5) Мониториг доступности сайта на Zabbix.
+Штатно проверяем доступность сайта по 200 заголовку и наличию строки на сайте. 
+Шаблоны - веб сценарии - Интервал, попытки, тип агента - Добавляем шаг - Index, Url, 200й код и строка на сайте. 
 
