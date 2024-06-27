@@ -22,4 +22,26 @@ Index Lifecycle Management (ILM)
 https://www.youtube.com/watch?v=shRMyUGQz1M
 https://habr.com/ru/companies/oleg-bunin/articles/757958/
 
-4) 
+4) Расскатываем обновления на win через Ansible
+Без изысков ставим ансибл, пакеты для работы с cerboros и winrm, НО
+  Включить на хосте winrm
+  Открыть порт 5986 tcp в сторону Ansible
+Всё это политикой или заскриптовапть.
+Авторизацию в керберос можно прописать как переменными в hosts
+
+[windows:vars]
+ansible_user=kozlov_aa
+ansible_password=1111111
+ansible_port=5986
+ansible_connection=winrm
+ansible_winrm_server_cert_validation=ignore
+ansible_winrm_transport=kerberos
+ansible_winrm_kerberos_delegation=true
+
+так и установив модуль pip requests-kerberos и сконфигурить /etc/krb5.conf
+На тесте тачка в домене pbis.
+
+Для работы можно использовать коллекции. Разобраться.
+
+5) 
+
