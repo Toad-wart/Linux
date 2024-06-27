@@ -30,7 +30,7 @@ https://habr.com/ru/companies/oleg-bunin/articles/757958/
 Авторизацию в керберос можно прописать как переменными в hosts
 
 [windows:vars]
-ansible_user=kozlov_aa
+ansible_user=
 ansible_password=1111111
 ansible_port=5986
 ansible_connection=winrm
@@ -47,3 +47,7 @@ ansible_winrm_kerberos_delegation=true
 Штатно проверяем доступность сайта по 200 заголовку и наличию строки на сайте. 
 Шаблоны - веб сценарии - Интервал, попытки, тип агента - Добавляем шаг - Index, Url, 200й код и строка на сайте. 
 
+6) CheckPoint + Prometeus + grafana
+
+У чекпоинта сервис CPview отдаёт данные в прометеус. 
+Скачать на сайте чек поинта панель графаны. 
