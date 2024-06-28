@@ -48,7 +48,7 @@ ansible_winrm_kerberos_delegation=true
 Шаблоны - веб сценарии - Интервал, попытки, тип агента - Добавляем шаг - Index, Url, 200й код и строка на сайте. 
 
 6) CheckPoint + Prometeus + grafana
-Ставим прометеус
+Ставим прометеус, активируем remote write reciver
 
 Ставим графану, подключаем к прометеус. Скачать на сайте чек поинта панель графаны.
  
@@ -62,3 +62,5 @@ https://github.com/mmanningcp/skylineinstructions/blob/main/README.md
 
 ClickHouse - хранит записи журнала регистрации.
 Prometheus - хранит значения метрик, собранных с кластеров 1С. 
+
+Мониторинг блокировок утилита RAS remote enterprise monitoring
