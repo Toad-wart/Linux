@@ -55,3 +55,10 @@ ansible_winrm_kerberos_delegation=true
 https://github.com/mmanningcp/skylineinstructions/blob/main/README.md
 
 У чекпоинта сервис CPview отдаёт данные в прометеус
+
+7) ПО поводу мониторинга 1с есть куча готовых решений. 
+скрипты для агента
+Выгрузка информации в json на сервере и парсинг этого заббиксом
+
+ClickHouse - хранит записи журнала регистрации.
+Prometheus - хранит значения метрик, собранных с кластеров 1С. 
