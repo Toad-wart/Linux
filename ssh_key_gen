@@ -1,0 +1,5 @@
+ssh-keygen -C "$(whoami)@$(hostname)-$(date -I)"
+
+ssh-copy-id root@server
+
+Где где server - имя хоста, на который уйдёт ключ. 
