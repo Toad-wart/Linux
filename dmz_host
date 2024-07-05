@@ -1,3 +1,30 @@
+1) Для начала получим список всех хостов в DMZ. Наличие Linux на борту будем определять по открытому 22му порту. 
+
+nmap 10.240.240.0/24 -p 22 --open | grep 10.240.240. | awk '{print $NF}' | sed 's/(//;s/)//'
+
+2) Скармливаем этот список Ansible и проверяем его актуальность.
+
+
+Создаём файл host.
+
+
+
+[mpuser_machines]
+ 
+[mpuser_machines:vars]
+ansible_connection=ssh
+ansible_ssh_user=user
+
+Под грифом mpuser_machines мы записываем полученные ранее хосты.  В поля ansible_ssh_user  вводим имя пользователя для доступа SSH к хосту. 
+
+3) Проверяем актуальность нашего списка. 
+
+ansible all -m shell -a "cat /etc/hostname" -i ./host2 -b -k | grep CHANGED -A 1 
+
+4)  Пишем playbook для накатывания изменений согласно заявке.
+
+ansible-playbook -i hosts playbook.yml -k
+
 
 ---
 - name: Create user mpuser, set permissions, copy files, and update sudoers
