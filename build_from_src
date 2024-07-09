@@ -6,4 +6,10 @@ cd /path/to/src
 
 apt list --upgradable -a
 dpkg-buildpackage -rfakeroot -d -us -uc -ui
-debuild -d
+
+
+dpkg -i squid squid-common squidclient
+apt-get --fix-broken install
+
+# Сохраните список установленных зависимостей
+apt-mark hold squid squidclient squid-common
