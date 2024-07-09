@@ -14,3 +14,7 @@ apt-get --fix-broken install
 
 # Сохраните список установленных зависимостей
 apt-mark hold squid squidclient squid-common
+
+Активируем базу сертификатов 
+/usr/lib/squid/security_file_certgen -c -s   /var/spool/squid/ssl_db -M 1024
+
