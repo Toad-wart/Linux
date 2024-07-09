@@ -3,7 +3,6 @@ apt-get source squid
 apt-get build-dep squid
 
 cd /path/to/src
-./configure --enable-ssl --enable-ssl-crtd --with-openssl
 
 apt list --upgradable -a
 dpkg-buildpackage -rfakeroot -d -us -uc -ui
