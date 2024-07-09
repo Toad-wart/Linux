@@ -1,3 +1,4 @@
+https://docs.staffcop.ru/cases/squid_proxy.html
 apt-get install devscripts build-essential fakeroot libssl-dev libssl1.0-dev build-essential devscripts debhelper libssl1.0-dev
 apt-get source squid
 apt-get build-dep squid
