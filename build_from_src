@@ -2,7 +2,7 @@ apt-get install devscripts build-essential fakeroot libssl-dev libssl1.0-dev bui
 apt-get build-dep squid
 
 cd /path/to/src
-./configure --enable-ssl --enable-ssl-crtd --with-openssl --with-gnutls
+./configure --enable-ssl --enable-ssl-crtd --with-openssl
 
 apt list --upgradable -a
 dpkg-buildpackage -rfakeroot -d -us -uc -ui
