@@ -1,0 +1,94 @@
+1) Для начала получим список всех хостов в DMZ. Наличие Linux на борту будем определять по открытому 22му порту. 
+
+nmap 10.240.240.0/24 -p 22 --open | grep 10.240.240. | awk '{print $NF}' | sed 's/(//;s/)//'
+
+2) Скармливаем этот список Ansible и проверяем его актуальность.
+
+Создаём файл host.
+
+[mpuser_machines]
+ 
+[mpuser_machines:vars]
+ansible_connection=ssh
+ansible_ssh_user=user
+
+Под грифом mpuser_machines мы записываем полученные ранее хосты.  В поля ansible_ssh_user  вводим имя пользователя для доступа SSH к хосту. 
+
+3) Проверяем актуальность нашего списка. 
+
+ansible all -m shell -a "cat /etc/hostname" -i ./host2 -b -k | grep CHANGED -A 1 
+
+4)  Пишем playbook для накатывания изменений согласно заявке.
+
+ansible-playbook -i hosts playbook.yml -k
+
+
+---
+- name: Create user mpuser, set permissions, copy files, and update sudoers
+  hosts: mpuser_machines
+  become: yes
+  tasks:
+    - name: Ensure user mpuser is present
+      user:
+        name: mpuser
+        password: "{{ 'mpuser_password' | password_hash('sha512') }}"
+        shell: /bin/bash
+        state: present
+        create_home: yes
+ 
+    - name: Set permissions for mpuser's home directory
+      file:
+        path: /home/mpuser
+        owner: mpuser
+        group: mpuser
+        mode: '0700'
+ 
+    - name: Check if docker group exists
+      command: getent group docker
+      register: docker_group
+      ignore_errors: yes
+ 
+    - name: Add mpuser to docker group if it exists
+      user:
+        name: mpuser
+        groups: docker
+        append: yes
+      when: docker_group.rc == 0
+ 
+    - name: Update sudoers file with required command aliases
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        create: no
+        validate: 'visudo -cf %s'
+        line: "{{ item }}"
+      with_items:
+        - 'Cmnd_Alias MPROOTCMD = /usr/bin/at -l, /usr/bin/crontab * -l, /sbin/fdisk -l, /sbin/iptables-save, /bin/netstat, /bin/ss, /usr/sbin/dmidecode, /sbin/vgdisplay, /sbin/lvdisplay, /sbin/pvdisplay>
+        - 'Cmnd_Alias MPDOCKERCMD = /usr/bin/docker info *, /usr/bin/docker ps *, /usr/bin/docker image ls *, /usr/bin/docker container ls *, /usr/bin/docker network ls *, /usr/bin/docker network inspect>
+        - 'Cmnd_Alias MPSNAPDOCKERCMD = /snap/bin/docker info *, /snap/bin/docker ps *, /snap/bin/docker image ls *, /snap/bin/docker container ls *, /snap/bin/docker network ls *, /snap/bin/docker netwo>
+        - 'Cmnd_Alias MPDETECTCMD = /usr/bin/nsenter -t * -m /bin/cat /etc/SuSE-release, /usr/bin/nsenter -t * -m /bin/cat /etc/centos-release, /usr/bin/nsenter -t * -m /bin/cat /etc/debian_version, /usr>
+        - 'Cmnd_Alias MPFILECMD = /bin/cat, /usr/bin/find *, /bin/ls, /usr/bin/getfacl, /usr/bin/test'
+        - 'Cmnd_Alias MPEXCPTNSCMD = !/usr/bin/find *-exec*, !/usr/bin/find *-fprint*, !/usr/bin/find *-ok*, !/usr/bin/find *-delete*, !/usr/bin/find *-fls*, !/bin/ss *--diag*, !/bin/ss *-D*, !/bin/ss *->
+        - 'mpuser ALL = (ALL) NOPASSWD: MPDOCKERCMD'
+        - 'mpuser ALL = (ALL) NOPASSWD: MPROOTCMD'
+        - 'mpuser ALL = (ALL) NOPASSWD: MPSNAPDOCKERCMD'
+        - 'mpuser ALL = (ALL) NOPASSWD: MPDETECTCMD'
+        - 'mpuser ALL = (ALL) NOPASSWD: MPFILECMD'
+        - 'mpuser ALL = (ALL) NOPASSWD: MPEXCPTNSCMD'
+ 
+ 
+    - name: Copy bin directory from local to /home/mpuser on remote hosts
+      copy:
+        src: /root/bin/
+        dest: /home/mpuser/bin/
+        owner: mpuser
+        group: mpuser
+        mode: '0700'
+ 
+    - name: Copy .bash_profile from local to /home/mpuser on remote hosts
+      copy:
+        src: /root/.bash_profile
+        dest: /home/mpuser/.bash_profile
+        owner: mpuser
+        group: mpuser
+        mode: '0700'
