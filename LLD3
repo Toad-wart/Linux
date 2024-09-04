@@ -1,0 +1,46 @@
+# Устанавливаем политику выполнения
+Set-ExecutionPolicy RemoteSigned
+
+# Устанавливаем сессию для работы с Exchange
+$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri http://vl20-dag01/PowerShell/ -Authentication Kerberos
+Import-PSSession $Session -DisableNameChecking -AllowClobber
+
+# Параметры сервера Zabbix
+$zabbixSenderPath = "C:\Zabbix Agent\bin\win64\zabbix_sender.exe"
+$zabbixServer = "192.168.10.209"
+$zabbixHost = "VL20-EXCH01"
+
+# Получаем информацию о базах данных
+$databases = Get-MailboxDatabase -Status | Select-Object Name, DatabaseSize
+
+# Формируем объект для LLD JSON
+$jsonObject = @{}
+
+foreach ($db in $databases) {
+    # Получаем размер базы данных в байтах
+    $dbSizeInBytes = $db.DatabaseSize.ToString().Split('(')[1].Split(' ')[0] -replace '[^0-9.]',''
+
+    # Преобразуем размер в гигабайты и округляем до двух знаков после запятой
+    $dbSizeInGB = [math]::Round(($dbSizeInBytes / 1GB), 2)
+
+    # Добавляем информацию в объект JSON
+    $jsonObject[$db.Name] = @{
+        "SIZE_GB" = $dbSizeInGB
+    }
+}
+
+# Преобразуем объект в JSON-формат
+$jsonOutput = $jsonObject | ConvertTo-Json -Depth 3
+
+# Записываем данные JSON в файл для отладки (по желанию)
+$filePath = "C:\Scripts\zabbix_lld_data.json"
+$jsonOutput | Out-File -FilePath $filePath -Encoding ASCII
+
+# Экранируем кавычки, если необходимо
+$jsonOutputEscaped = $jsonOutput -replace '"', '\"'
+
+# Заключаем весь JSON в двойные кавычки
+$jsonOutputEscaped = "`"$jsonOutputEscaped`""
+
+# Отправляем данные на сервер Zabbix
+& $zabbixSenderPath -z $zabbixServer -s $zabbixHost -k exchange.db.discovery -o "$jsonOutputEscaped" -vv
