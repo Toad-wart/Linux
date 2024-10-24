@@ -1,5 +1,44 @@
-cd /run/
-mkdir zabbix
-touch zabbix/zabbix_agentd.pid
-chown -R zabbix:zabbix zabbix/
+#!/bin/bash
+
+# Проверка запуска от root
+if [ "$(id -u)" != "0" ]; then
+   echo "Этот скрипт должен быть выполнен от root" 1>&2
+   exit 1
+fi
+
+# Создание нового каталога для PID-файла
+NEW_PID_DIR="/var/lib/zabbix"
+echo "Создаем каталог $NEW_PID_DIR для PID-файла..."
+mkdir -p "$NEW_PID_DIR"
+chown zabbix:zabbix "$NEW_PID_DIR"
+chmod 755 "$NEW_PID_DIR"
+
+# Обновление конфигурации Zabbix агента
+CONFIG_FILE="/etc/zabbix/zabbix_agentd.conf"
+PID_FILE_PATH="PidFile=$NEW_PID_DIR/zabbix_agentd.pid"
+
+if grep -q "^PidFile=" "$CONFIG_FILE"; then
+    echo "Обновляем путь для PID-файла в конфигурации..."
+    sed -i "s|^PidFile=.*|$PID_FILE_PATH|" "$CONFIG_FILE"
+else
+    echo "Добавляем путь для PID-файла в конфигурацию..."
+    echo "$PID_FILE_PATH" >> "$CONFIG_FILE"
+fi
+
+# Перезагрузка конфигурации systemd
+echo "Перезагружаем systemd..."
+systemctl daemon-reload
+
+# Перезапуск Zabbix агента
+echo "Перезапускаем Zabbix агент..."
 systemctl restart zabbix-agent
+
+# Проверка прав на каталог
+echo "Проверка прав доступа к каталогу $NEW_PID_DIR..."
+ls -ld "$NEW_PID_DIR"
+
+# Проверка статуса Zabbix агента
+echo "Проверка статуса Zabbix агента..."
+systemctl status zabbix-agent
+
+echo "Скрипт выполнен. PID-файл теперь создается в $NEW_PID_DIR."
