@@ -1,0 +1,5 @@
+cd /run/
+mkdir zabbix
+touch zabbix/zabbix_agentd.pid
+chown -R zabbix:zabbix zabbix/
+systemctl restart zabbix-agent
