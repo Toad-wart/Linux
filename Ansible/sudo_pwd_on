@@ -1,0 +1,19 @@
+# Выключаем безпарольное sudo
+
+- name: Update sudoers file
+  hosts: nopwd
+  become: true
+  tasks:
+    - name: Replace NOPASSWD with ALL in sudoers
+      ansible.builtin.shell: "sed -i 's/\\(ALL\\)=NOPASSWD:\\ ALL/\\1=(ALL) ALL/' /etc/sudoers"
+      register: sed_result
+
+    - name: Verify sudoers file syntax
+      ansible.builtin.shell: "visudo -c"
+      register: visudo_check
+      ignore_errors: yes
+
+    - name: Fail if sudoers syntax is invalid
+      ansible.builtin.fail:
+        msg: "Sudoers file is invalid after sed command!"
+      when: visudo_check.rc != 0
