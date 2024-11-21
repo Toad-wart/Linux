@@ -1,0 +1,43 @@
+---
+- name: Move files from /home/mpuser/bin/bin/ to /home/mpuser/bin/
+  hosts: mv
+  become: yes
+  tasks:
+    - name: Ensure source directory exists
+      ansible.builtin.stat:
+        path: /home/mpuser/bin/bin/
+      register: source_dir
+
+    - name: Check if source directory contains files
+      ansible.builtin.find:
+        paths: /home/mpuser/bin/bin/
+        recurse: no
+      register: files_in_source_dir
+
+    - name: Copy files if source directory exists and contains files
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: /home/mpuser/bin/
+        remote_src: yes
+      with_items: "{{ files_in_source_dir.files }}"
+      when: source_dir.stat.exists and source_dir.stat.isdir and files_in_source_dir.matched > 0
+
+    - name: Set permissions for mpuser's home directory
+      file:
+        path: /home/mpuser
+        owner: mpuser
+        group: mpuser
+        mode: '0700'
+
+    - name: Remove source files after copying
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      with_items: "{{ files_in_source_dir.files }}"
+      when: source_dir.stat.exists and source_dir.stat.isdir and files_in_source_dir.matched > 0
+
+    - name: Remove empty source directory
+      ansible.builtin.file:
+        path: /home/mpuser/bin/bin/
+        state: absent
+      when: source_dir.stat.exists and source_dir.stat.isdir
