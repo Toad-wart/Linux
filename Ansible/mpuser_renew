@@ -1,0 +1,156 @@
+---
+- name: Configure mpuser account and environment with validations
+  hosts: mpuser
+  become: true
+
+  vars:
+    mpuser_password: "{{ 'Pass' | password_hash('sha512') }}"  # Хешируйте пароль заранее
+    bin_tar_path: "./bin.tar"
+    bash_profile_path: "./.bash_profile"
+
+  tasks:
+    - name: Remove existing user and group
+      ansible.builtin.shell: |
+        userdel -r mpuser || true
+        groupdel mpuser || true
+
+    - name: Remove lines starting with 'mpuser' from sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^mpuser.*'
+        state: absent
+        backup: yes
+
+    - name: Remove lines starting with 'Cmnd_Alias MP' from sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^Cmnd_Alias MP.*'
+        state: absent
+        backup: yes
+
+    - name: Clean up /etc/sudoers.d/mpuser before applying new configuration
+      ansible.builtin.file:
+        path: /etc/sudoers.d/mpuser
+        state: absent
+
+    - name: Create mpuser with specified settings
+      ansible.builtin.user:
+        name: mpuser
+        group: users
+        shell: /bin/bash
+        create_home: true
+        password: "{{ mpuser_password }}"  # Указываем хешированный пароль
+
+    - name: Set home directory permissions
+      ansible.builtin.file:
+        path: /home/mpuser
+        mode: '0700'
+        state: directory
+
+    - name: Copy bin.tar to mpuser home directory
+      ansible.builtin.copy:
+        src: "{{ bin_tar_path }}"
+        dest: /home/mpuser/bin.tar
+        owner: root
+        group: root
+
+    - name: Extract bin.tar to mpuser home directory
+      ansible.builtin.unarchive:
+        src: /home/mpuser/bin.tar
+        dest: /home/mpuser
+        remote_src: yes
+
+    - name: Change ownership of mpuser home directory
+      ansible.builtin.file:
+        path: /home/mpuser
+        owner: mpuser
+        group: users
+        recurse: yes
+
+    - name: Set permissions for /home/mpuser/bin
+      ansible.builtin.file:
+        path: /home/mpuser/bin
+        mode: '0700'
+        recurse: yes
+
+    - name: Remove bin.tar
+      ansible.builtin.file:
+        path: /home/mpuser/bin.tar
+        state: absent
+
+    - name: Copy .bash_profile to mpuser home directory
+      ansible.builtin.copy:
+        src: "{{ bash_profile_path }}"
+        dest: /home/mpuser/.bash_profile
+        owner: mpuser
+        group: users
+
+    - name: Ensure /home/mpuser/bin is in $PATH
+      ansible.builtin.lineinfile:
+        path: /home/mpuser/.bash_profile
+        line: 'export PATH=/home/mpuser/bin:$PATH'
+        owner: mpuser
+        group: users
+        create: yes
+
+    - name: Add /sbin and /usr/sbin to $PATH if missing
+      ansible.builtin.lineinfile:
+        path: /home/mpuser/.bash_profile
+        line: 'export PATH=$PATH:/sbin:/usr/sbin'
+        owner: mpuser
+        group: users
+        create: yes
+
+    - name: Configure sudo privileges for mpuser
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/mpuser
+        content: |
+          Defaults:mpuser    env_reset
+          Defaults:mpuser    env_keep -= PATH
+
+          Cmnd_Alias MPROOTCMD = /usr/bin/at -l, /usr/sbin/auditctl -[lv], /sbin/auditctl -[lv], /usr/sbin/blkid, /sbin/blkid, /usr/bin/crontab * -l, /usr/bin/df, /bin/df, /usr/bin/dmesg "", /bin/dmesg ">
+          Cmnd_Alias MPDETECTCMD = /usr/bin/nsenter -t * -m /bin/cat /etc/SuSE-release, /usr/bin/nsenter -t * -m /bin/cat /etc/centos-release, /usr/bin/nsenter -t * -m /bin/cat /etc/debian_version, /usr/>
+          Cmnd_Alias MPFILECMD = /usr/bin/cat, /bin/cat, /usr/bin/file -bL *, /bin/file -bL *, /usr/bin/find *, /usr/bin/getfacl, /usr/bin/ls, /bin/ls, /usr/bin/test
+          Cmnd_Alias MPAPACHECMD = /usr/sbin/apache2ctl * -V, /usr/sbin/apache2ctl * -t -D DUMP_RUN_CFG, /usr/sbin/apache2ctl * -t -D DUMP_INCLUDES, /usr/sbin/apache2ctl * -l, /usr/sbin/apache2ctl * -M
+          Cmnd_Alias MPDOCKERCMD = /usr/bin/docker info *, /usr/bin/docker ps *, /usr/bin/docker image ls *, /usr/bin/docker container ls *, /usr/bin/docker network ls *, /usr/bin/docker network inspect >
+          Cmnd_Alias MPGITLABCMD = /opt/gitlab/bin/gitlab-rails runner *, /opt/gitlab/bin/gitlab-rake gitlab\:env\:info
+          Cmnd_Alias MPKERBEROSCMD = /usr/sbin/kadmin.local -q "get_principal kadmin/changepw", /usr/sbin/kadmin.local -q "get_principal krbtgt/[a-zA-Z0-9\\.\\-]+"
+          Cmnd_Alias MPLIBVIRTCMD = /usr/bin/virsh -r version, /usr/bin/virsh -r list, /usr/bin/virsh -r dominfo *, /usr/bin/virsh guestinfo *
+          Cmnd_Alias MPTARANTOOLCMD = /usr/bin/tt cfg dump, /usr/bin/tt instances, /usr/bin/tt rocks list, /usr/bin/tt status
+          Cmnd_Alias MPEXCPTNSCMD = !/usr/sbin/dmidecode *--dump*, !/usr/bin/find *-exec*, !/usr/bin/find *-fprint*, !/usr/bin/find *-ok*, !/usr/bin/find *-delete*, !/usr/bin/find *-fls*, !/usr/bin/nsent>
+
+          mpuser ALL = (ALL) NOPASSWD: MPROOTCMD
+          mpuser ALL = (ALL) NOPASSWD: MPDETECTCMD
+          mpuser ALL = (ALL) NOPASSWD: MPFILECMD
+          mpuser ALL = (ALL) NOPASSWD: MPAPACHECMD
+          mpuser ALL = (ALL) NOPASSWD: MPDOCKERCMD
+          mpuser ALL = (ALL) NOPASSWD: MPGITLABCMD
+          mpuser ALL = (ALL) NOPASSWD: MPKERBEROSCMD
+          mpuser ALL = (ALL) NOPASSWD: MPLIBVIRTCMD
+          mpuser ALL = (ALL) NOPASSWD: MPTARANTOOLCMD
+          mpuser ALL = (ALL) NOPASSWD: MPEXCPTNSCMD
+
+        owner: root
+        group: root
+        mode: '0440'
+
+
+    - name: Validate sudo configuration
+      ansible.builtin.command:
+        cmd: visudo -cf /etc/sudoers.d/mpuser
+      register: sudoers_check
+      failed_when: "'syntax error' in sudoers_check.stderr"
+      changed_when: false
+
+
+    - name: Check if docker group exists
+      command: getent group docker
+      register: docker_group
+      ignore_errors: yes
+
+    - name: Add mpuser to docker group if it exists
+      user:
+        name: mpuser
+        groups: docker
+        append: yes
+      when: docker_group.rc == 0
