@@ -1,0 +1,18 @@
+(
+  echo "### PROJECT TREE ###"
+  tree -a -I '.git|node_modules|dist|build|.idea|.vscode|bin|obj'
+
+  echo -e "\n\n### FILE CONTENTS ###"
+
+  find . -type f \
+    -not -path '*/.git/*' \
+    -not -path '*/node_modules/*' \
+    -not -path '*/dist/*' \
+    -not -path '*/build/*' \
+    -size -500k \
+    \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.ps1" -o -name "*.sh" -o -name "*.py" -o -name "*.xml" -o -name "*.sql" -o -name "*.conf" -o -name "*.ini" -o -name "*.md" \) \
+    -print0 | while IFS= read -r -d '' file; do
+      echo -e "\n\n===== FILE: $file ====="
+      sed 's/\r$//' "$file"
+    done
+) > project_dump.txt
