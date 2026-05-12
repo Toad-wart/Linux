@@ -1,18 +1,70 @@
-(
-  echo "### PROJECT TREE ###"
-  tree -a -I '.git|node_modules|dist|build|.idea|.vscode|bin|obj'
+#!/bin/bash
+# =============================================
+# Project Dump v3 — надёжная обработка UTF-8 / UTF-16 / binary
+# =============================================
 
-  echo -e "\n\n### FILE CONTENTS ###"
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
 
-  find . -type f \
-    -not -path '*/.git/*' \
-    -not -path '*/node_modules/*' \
-    -not -path '*/dist/*' \
-    -not -path '*/build/*' \
-    -size -500k \
-    \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.ps1" -o -name "*.sh" -o -name "*.py" -o -name "*.xml" -o -name "*.sql" -o -name "*.conf" -o -name "*.ini" -o -name "*.md" \) \
-    -print0 | while IFS= read -r -d '' file; do
-      echo -e "\n\n===== FILE: $file ====="
-      sed 's/\r$//' "$file"
-    done
-) > project_dump.txt
+OUTPUT="project_dump.txt"
+ERROR_LOG="encoding_errors.log"
+
+> "$OUTPUT"
+> "$ERROR_LOG"
+
+echo "### PROJECT TREE ###" | tee -a "$OUTPUT"
+tree -a -I '.git|node_modules|dist|build|.idea|.vscode|bin|obj|__pycache__' | tee -a "$OUTPUT" || echo "tree не найден"
+
+echo -e "\n\n### FILE CONTENTS ###" | tee -a "$OUTPUT"
+
+find . -type f \
+  -not -path '*/.git/*' \
+  -not -path '*/node_modules/*' \
+  -not -path '*/dist/*' \
+  -not -path '*/build/*' \
+  -not -path '*/__pycache__/*' \
+  -size -500k \
+  \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \
+   -o -name "*.ps1" -o -name "*.sh" -o -name "*.py" \
+   -o -name "*.xml" -o -name "*.sql" -o -name "*.conf" \
+   -o -name "*.ini" -o -name "*.md" -o -name "*.js" \
+   -o -name "*.ts" -o -name "*.html" -o -name "*.css" \
+   -o -name "*.txt" \) \
+  -print0 | while IFS= read -r -d '' file; do
+
+    printf '\n\n===== FILE: %s =====\n' "$file" | tee -a "$OUTPUT"
+
+    # Проверка на бинарный файл (много NULL байтов)
+    if grep -q $'\0' "$file" 2>/dev/null; then
+        # Пробуем обработать как UTF-16
+        if head -c 2 "$file" | grep -q $'\xff\xfe'; then
+            echo "[Detected UTF-16LE — converting]" | tee -a "$OUTPUT"
+            iconv -f UTF-16LE -t UTF-8//IGNORE "$file" >> "$OUTPUT" 2>/dev/null || echo "[Failed to convert UTF-16]" >> "$OUTPUT"
+        else
+            echo "[Binary file or contains NULL bytes — content skipped]" | tee -a "$OUTPUT"
+            echo "[File size: $(wc -c < "$file") bytes]" >> "$OUTPUT"
+        fi
+        continue
+    fi
+
+    # Обычный текстовый файл
+    mime=$(file -b --mime-encoding "$file" 2>/dev/null)
+
+    case "$mime" in
+        "utf-8"|"us-ascii")
+            cat "$file" >> "$OUTPUT"
+            ;;
+        *)
+            if command -v iconv >/dev/null; then
+                iconv -f "$mime" -t UTF-8//IGNORE "$file" >> "$OUTPUT" 2>/dev/null || cat "$file" >> "$OUTPUT"
+            else
+                cat "$file" >> "$OUTPUT"
+            fi
+            ;;
+    esac
+
+done
+
+echo -e "\n\n=== Дамп завершён ===" | tee -a "$OUTPUT"
+echo "Создан файл: $OUTPUT"
+echo "Лог ошибок: $ERROR_LOG"
