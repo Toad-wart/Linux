@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================
-# Project Dump v3 — надёжная обработка UTF-8 / UTF-16 / binary
+# Project Dump v3.6 — исправлены синтаксические ошибки
 # =============================================
 
 export LC_ALL=C.UTF-8
@@ -8,6 +8,7 @@ export LANG=C.UTF-8
 
 OUTPUT="project_dump.txt"
 ERROR_LOG="encoding_errors.log"
+MAX_SIZE=524288  # 500 КБ
 
 > "$OUTPUT"
 > "$ERROR_LOG"
@@ -23,10 +24,10 @@ find . -type f \
   -not -path '*/dist/*' \
   -not -path '*/build/*' \
   -not -path '*/__pycache__/*' \
-  -size -500k \
+  -size -2M \
   \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \
    -o -name "*.ps1" -o -name "*.sh" -o -name "*.py" \
-   -o -name "*.xml" -o -name "*.sql" -o -name "*.conf" \
+   -o -name "*.xml" -o -name "*.conf" \
    -o -name "*.ini" -o -name "*.md" -o -name "*.js" \
    -o -name "*.ts" -o -name "*.html" -o -name "*.css" \
    -o -name "*.txt" \) \
@@ -34,34 +35,31 @@ find . -type f \
 
     printf '\n\n===== FILE: %s =====\n' "$file" | tee -a "$OUTPUT"
 
-    # Проверка на бинарный файл (много NULL байтов)
-    if grep -q $'\0' "$file" 2>/dev/null; then
-        # Пробуем обработать как UTF-16
-        if head -c 2 "$file" | grep -q $'\xff\xfe'; then
-            echo "[Detected UTF-16LE — converting]" | tee -a "$OUTPUT"
-            iconv -f UTF-16LE -t UTF-8//IGNORE "$file" >> "$OUTPUT" 2>/dev/null || echo "[Failed to convert UTF-16]" >> "$OUTPUT"
-        else
-            echo "[Binary file or contains NULL bytes — content skipped]" | tee -a "$OUTPUT"
-            echo "[File size: $(wc -c < "$file") bytes]" >> "$OUTPUT"
+    # Проверка на бинарный файл
+    if [ -s "$file" ] && head -c 10000 "$file" | grep -q $'\0'; then
+        null_count=$(head -c 50000 "$file" | tr -cd '\0' | wc -c)
+        if [ "$null_count" -gt 5 ]; then
+            if head -c 2 "$file" | grep -q $'\xff\xfe'; then
+                echo "[Detected UTF-16LE]" | tee -a "$OUTPUT"
+                iconv -f UTF-16LE -t UTF-8//IGNORE "$file" 2>>"$ERROR_LOG" | head -c "$MAX_SIZE" >> "$OUTPUT"
+            else
+                echo "[Binary file skipped]" | tee -a "$OUTPUT"
+            fi
+            continue
         fi
-        continue
     fi
 
-    # Обычный текстовый файл
-    mime=$(file -b --mime-encoding "$file" 2>/dev/null)
+    # Основная обработка текстового файла
+    if command -v iconv >/dev/null; then
+        iconv -f UTF-8 -t UTF-8//IGNORE "$file" 2>>"$ERROR_LOG" | head -c "$MAX_SIZE" >> "$OUTPUT"
+    else
+        head -c "$MAX_SIZE" "$file" >> "$OUTPUT"
+    fi
 
-    case "$mime" in
-        "utf-8"|"us-ascii")
-            cat "$file" >> "$OUTPUT"
-            ;;
-        *)
-            if command -v iconv >/dev/null; then
-                iconv -f "$mime" -t UTF-8//IGNORE "$file" >> "$OUTPUT" 2>/dev/null || cat "$file" >> "$OUTPUT"
-            else
-                cat "$file" >> "$OUTPUT"
-            fi
-            ;;
-    esac
+    # Предупреждение об обрезке (без восклицательных знаков)
+    if [ "$(wc -c < "$file")" -gt "$MAX_SIZE" ]; then
+        echo -e "\n[FILE TRUNCATED - showing first 500 KB only]" >> "$OUTPUT"
+    fi
 
 done
 
