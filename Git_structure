@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================
-# Project Dump v3.6 — исправлены синтаксические ошибки
+# Project Dump v3.7 — исключены служебные файлы из вывода
 # =============================================
 
 export LC_ALL=C.UTF-8
@@ -25,6 +25,8 @@ find . -type f \
   -not -path '*/build/*' \
   -not -path '*/__pycache__/*' \
   -size -2M \
+  ! -name "$OUTPUT" \
+  ! -name "$ERROR_LOG" \
   \( -name "*.yml" -o -name "*.yaml" -o -name "*.json" \
    -o -name "*.ps1" -o -name "*.sh" -o -name "*.py" \
    -o -name "*.xml" -o -name "*.conf" \
@@ -56,7 +58,7 @@ find . -type f \
         head -c "$MAX_SIZE" "$file" >> "$OUTPUT"
     fi
 
-    # Предупреждение об обрезке (без восклицательных знаков)
+    # Предупреждение об обрезке
     if [ "$(wc -c < "$file")" -gt "$MAX_SIZE" ]; then
         echo -e "\n[FILE TRUNCATED - showing first 500 KB only]" >> "$OUTPUT"
     fi
